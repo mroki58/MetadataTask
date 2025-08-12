@@ -54,7 +54,7 @@ public class FivetranConnectionSupport : IConnectionSupport
     public string SelectToImport(object? connectionDetails)
     {
         var details = ValidateConnectionDetails(connectionDetails);
-        using var restApiManager = GetOrCreateApiManager(details);
+        var restApiManager = GetOrCreateApiManager(details);
 
         var groups = GetGroups(restApiManager);
         DisplayGroups(groups);
