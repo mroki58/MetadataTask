@@ -1,4 +1,4 @@
-﻿namespace FivetranClient.Models;
+﻿namespace FivetranClient.Dtos;
 
 public class PaginatedRoot<T>
 {

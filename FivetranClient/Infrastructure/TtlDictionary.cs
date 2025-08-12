@@ -1,31 +1,45 @@
-﻿namespace FivetranClient.Infrastructure;
+﻿using System.Collections.Concurrent;
+using System.Threading.Tasks;
 
 public class TtlDictionary<TKey, TValue> where TKey : notnull
 {
-    private readonly Dictionary<TKey, (TValue, DateTime)> _dictionary = new();
+    private readonly ConcurrentDictionary<TKey, (TValue Value, DateTime Expiry)> _dictionary = new();
+    private readonly ConcurrentDictionary<TKey, SemaphoreSlim> _locks = new();
 
-    public TValue GetOrAdd(TKey key, Func<TValue> valueFactory, TimeSpan ttl)
+    public async Task<TValue> GetOrAdd(TKey key, Func<Task<TValue>> valueFactory, TimeSpan ttl)
     {
-        if (_dictionary.TryGetValue(key, out var entry))
+        if (_dictionary.TryGetValue(key, out var entry) && DateTime.UtcNow < entry.Expiry)
         {
-            if (DateTime.UtcNow < entry.Item2)
-            {
-                return entry.Item1;
-            }
-
-            _dictionary.Remove(key);
+            return entry.Value;
         }
 
-        var value = valueFactory();
-        _dictionary[key] = (value, DateTime.UtcNow.Add(ttl));
-        return value;
+        var myLock = _locks.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
+
+        await myLock.WaitAsync();
+        try
+        {
+            if (_dictionary.TryGetValue(key, out entry) && DateTime.UtcNow < entry.Expiry)
+            {
+                return entry.Value;
+            }
+
+            var newValue = await valueFactory();
+
+            _dictionary[key] = (newValue, DateTime.UtcNow.Add(ttl));
+
+            return newValue;
+        }
+        finally
+        {
+            myLock.Release();
+        }
     }
 
     public bool TryGetValue(TKey key, out TValue value)
     {
-        if (_dictionary.TryGetValue(key, out var entry) && DateTime.UtcNow < entry.Item2)
+        if (_dictionary.TryGetValue(key, out var entry) && DateTime.UtcNow < entry.Expiry)
         {
-            value = entry.Item1;
+            value = entry.Value;
             return true;
         }
 
@@ -33,3 +47,4 @@ public class TtlDictionary<TKey, TValue> where TKey : notnull
         return false;
     }
 }
+

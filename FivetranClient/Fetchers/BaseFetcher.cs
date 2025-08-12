@@ -10,4 +10,10 @@ public abstract class BaseFetcher(HttpRequestHandler requestHandler)
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
         PropertyNameCaseInsensitive = true,
     };
+
+    protected async Task<T?> GetAndDeserializeAsync<T>(string endpoint, CancellationToken cancellationToken)
+    {
+        var content = await RequestHandler.GetAsync(endpoint, cancellationToken);
+        return JsonSerializer.Deserialize<T>(content, SerializerOptions);
+    }
 }

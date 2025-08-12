@@ -1,5 +1,5 @@
 ﻿using System.Text.Json;
-using FivetranClient.Models;
+using FivetranClient.Dtos;
 
 namespace FivetranClient.Fetchers;
 
@@ -7,9 +7,7 @@ public sealed class NonPaginatedFetcher(HttpRequestHandler requestHandler) : Bas
 {
     public async Task<T?> FetchAsync<T>(string endpoint, CancellationToken cancellationToken)
     {
-        var response = await base.RequestHandler.GetAsync(endpoint, cancellationToken);
-        var content = await response.Content.ReadAsStringAsync(cancellationToken);
-        var root = JsonSerializer.Deserialize<NonPaginatedRoot<T>>(content, SerializerOptions);
+        var root = await GetAndDeserializeAsync<NonPaginatedRoot<T>>(endpoint, cancellationToken);
         return root is null ? default(T) : root.Data;
     }
 }
